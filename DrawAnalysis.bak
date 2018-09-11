@@ -1,0 +1,72 @@
+#lang racket
+
+(require "GenCode.rkt")
+(require "Functions.rkt")
+(require "Parameters.rkt")
+
+#|------------------------------------------------------------------|#
+
+(require (prefix-in ac: rosetta/autocad))
+(require rosetta/robot/backend)
+
+#|------------------------------------------------------------------|#
+
+#| Draw |#
+
+(define (draw)
+  (ac:delete-all-shapes)
+  (define t-grid (pts-grid t-size g-length g-width))
+  (beam-grid t-grid
+             t-size
+             t-height
+             i-height
+             o-height
+             radius
+             med-radius
+             mini-radius
+             beam-curv
+             beam-div
+             'cad)
+  (roof-grid t-grid
+             t-size
+             t-height
+             i-height
+             o-height
+             radius
+             med-radius
+             mini-radius
+             beam-curv
+             beam-div))
+
+#| Analyze |#
+
+(define (truss-expression)
+  (for/list ((p (apply append (pts-grid t-size g-length g-width))))
+    (beam-grid (pts-grid t-size g-length g-width)
+               t-size
+               t-height
+               i-height
+               o-height
+               radius
+               med-radius
+               mini-radius
+               beam-curv
+               beam-div
+               'robot)))
+  
+(define (analyze)
+    (with-robot-analysis (results)
+      (for/list ((p (apply append (pts-grid t-size g-length g-width))))
+        (beam-grid (pts-grid t-size g-length g-width)
+               t-size
+               t-height
+               i-height
+               o-height
+               radius
+               med-radius
+               mini-radius
+               beam-curv
+               beam-div
+               'robot))
+      (vz 5000)
+      #t))

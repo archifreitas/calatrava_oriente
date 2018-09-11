@@ -1,0 +1,1 @@
+("6.12" ("470380988844f3b72963bbc3e1006e067dfecb68" . "b7441f9206371cbe3d641bc76e9cfac7bdd51898") (collects #"errortrace" #"errortrace-key.rkt") (collects #"racket" #"main.rkt") (collects #"racket" #"runtime-config.rkt") (collects #"rosetta" #"autocad.rkt") (collects #"rosetta" #"robot" #"backend.rkt"))
