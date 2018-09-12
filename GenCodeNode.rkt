@@ -57,14 +57,13 @@
 (define (rods p pa pb mini-radius n program)
   (let* ((result0 (list-div p pa n))
          (result1 (list-div p pb n)))
-    (case program
-      ((cad) (for/list ([num (range 1 (length result0))])
-               (truss:c-bar (list-ref result0 num) mini-radius (list-ref result1 num))))
-      ((robot) (for/list ([num (range 1 (length result0))])
-                 (truss:node (list-ref result0 num)))
-               (for/list ([num (range 1 (length result0))])
+    (for/list ([num (range 1 (length result0))])
+      (case program
+        ((cad) (truss:c-bar (list-ref result0 num) mini-radius (list-ref result1 num)))
+        ((robot) (truss:node (list-ref result0 num))
+                 (truss:node (list-ref result1 num))
                  (truss:r-bar (list-ref result0 num) (list-ref result1 num)))))))
-                 
+
 #| Rod |#
 
 (define (rod centro-base radius topo program)
@@ -95,21 +94,24 @@
 
 #| Arc Beam |#
 
-(define (arc-beam p width beam-height mini-radius phi div n program)
-  (let*((e-list (elipse-list p (/ width 2) beam-height phi div n)))
-    (case program
-      ((cad) (for/list ([num (range(- (length e-list) 1))])
-               (truss:c-bar (list-ref e-list num) mini-radius (list-ref e-list (+ 1 num)))))
-      ((robot) (truss:fixed-node (list-ref e-list 0))
-               (for/list ([num (range 1 (length e-list))])
-                 (truss:node (list-ref e-list num)))
-               (truss:r-bar (list-ref e-list 0) (list-ref e-list 1))
-               (for/list ([num (range 1 (- (length e-list) 1))])
-                 (truss:r-bar (list-ref e-list num) (list-ref e-list (+ 1 num))))))))
+(define (arc-beams p width beam-height inner-height mini-radius div n program)
+  (case program
+    ((cad) (for/list ([t (division 0 2pi 4 #f)])
+             (let*((e-list (elipse-list p (/ width 2) (+ inner-height (- beam-height mini-radius)) t div n)))
+               (for/list ([num (range(- (length e-list) 1))])
+                        (truss:c-bar (list-ref e-list num) mini-radius (list-ref e-list (+ 1 num)))))))
+    ((robot) (truss:fixed-node p)
+             (for/list ([t (division 0 2pi 4 #f)])
+               (let*((e-list (elipse-list p (/ width 2) (+ inner-height beam-height) t div n)))
+                 (for/list ([num (range (- (length e-list) 1))])
+                   (truss:node (list-ref e-list (+ 1 num))))
+                 (truss:r-bar p (list-ref e-list 1))
+                 (for/list ([num (range 1 (- (length e-list) 1))])
+                   (truss:r-bar (list-ref e-list num) (list-ref e-list (+ 1 num)))))))))
 
 #| Beam to Roof |#
 (define (beam-to-roof p width beam-height inner-height outer-height radius mini-radius phi div n program)
-  (let* ((e-list (elipse-list p (/ width 2) (+ inner-height (- beam-height radius)) phi div n))
+  (let* ((e-list (elipse-list p (/ width 2) (+ inner-height beam-height) phi div n))
          (r1-list (list-div (+z p beam-height) (+cyl p
                                                      (* (/ width 2) (sqrt 2))
                                                      (+ phi (+ pi pi/4))
@@ -118,32 +120,23 @@
                                                      (* (/ width 2) (sqrt 2))
                                                      (+ phi (- pi pi/4))
                                                      (+ outer-height beam-height)) n)))
-    (case program
-      ((cad) (for/list ([num (range(length e-list))])
-               (truss:c-bar (list-ref e-list num) mini-radius (list-ref r1-list num))
-                 (truss:c-bar (list-ref e-list num) mini-radius (list-ref r2-list num))))
-      ((robot) (for/list ([num (range(length e-list))])
+    (for/list ([num (range(length e-list))])
+      (case program
+          ((cad) (truss:c-bar (list-ref e-list num) mini-radius (list-ref r1-list num))
+                 (truss:c-bar (list-ref e-list num) mini-radius (list-ref r2-list num)))
+        ((robot) (truss:node (list-ref e-list num))
                  (truss:node (list-ref r1-list num))
-                 (truss:node (list-ref r2-list num)))
-               (for/list ([num (range(length e-list))])
+                 (truss:node (list-ref r2-list num))
                  (truss:r-bar (list-ref e-list num) (list-ref r1-list num))
                  (truss:r-bar (list-ref e-list num) (list-ref r2-list num)))))))
-
-#| Beams |#
-
-(define (beams p width beam-height inner-height radius div n program)
-  (arc-beam p width  (+ inner-height (- beam-height radius)) radius 0 div n program)
-  (arc-beam p width  (+ inner-height (- beam-height radius)) radius (* 3 pi/2) div n program)
-  (arc-beam p width  (+ inner-height (- beam-height radius)) radius pi div n program)
-  (arc-beam p width  (+ inner-height (- beam-height radius)) radius pi/2 div n program))
 
 #| Beams Distribution |#
 
 (define (beam-grid grid width beam-height inner-height outer-height radius med-radius mini-radius div n program)
   (let* ((flat-list (apply append grid)))
     (for/list ([pt flat-list])
+      (arc-beams pt width beam-height inner-height radius div n program)
       (t-roof-rods pt (points pt width inner-height outer-height beam-height) beam-height med-radius mini-radius n program)
-      (beams pt width beam-height inner-height radius div n program)
       (for/list ([t (division 0 2pi 4 #f)])
         (beam-to-roof pt width beam-height inner-height outer-height radius mini-radius t div n program)))))
 
